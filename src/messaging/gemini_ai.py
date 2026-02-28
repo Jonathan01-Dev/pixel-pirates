@@ -9,7 +9,8 @@ import urllib.request
 import urllib.error
 
 def query_gemini(conversation_context: str, user_query: str) -> str:
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY") or "AIzaSyDuli0YtYel0jeW5Zcmk95L-X_qGoEtNts"
+    print(f"DEBUG clé: '{api_key}'")
     if not api_key:
         return "[IA] Erreur: Clé API Gemini non configurée (variable d'environnement GEMINI_API_KEY manquante)."
 

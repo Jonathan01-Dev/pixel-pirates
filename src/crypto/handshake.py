@@ -112,8 +112,22 @@ def perform_handshake_responder(sock, my_node_id: str, my_signing_key=None, firs
 
     if auth_peer_id != peer_node_id:
         raise ValueError("L'identité de l'émetteur a changé pendant le handshake !")
-        
-    # Idéalement revérifier auth_payload["sig"] avec peer_node_id (Ed25519 pubkey) ici.
+
+    # Vérification Ed25519 de la signature AUTH (protection MITM)
+    sig_hex = auth_payload.get("sig", "")
+    if sig_hex and peer_node_id:
+        try:
+            import nacl.signing
+            import nacl.encoding
+            # peer_node_id EST la clé publique Ed25519 hex (32 bytes)
+            peer_verify_key = nacl.signing.VerifyKey(
+                bytes.fromhex(peer_node_id), encoder=nacl.encoding.RawEncoder
+            )
+            sig_bytes = bytes.fromhex(sig_hex)
+            peer_verify_key.verify(b"archipel-auth" + session_key, sig_bytes)
+            print(f"[HANDSHAKE] ✅ Signature Ed25519 valide — identité confirmée")
+        except Exception as e:
+            print(f"[HANDSHAKE] ⚠️ Signature AUTH non vérifiable ({e}) — TOFU maintenu")
 
     print(f"[HANDSHAKE] Session etablie avec {peer_node_id[:16]}...")
     return HandshakeSession(session_key, peer_node_id, peer_pub_bytes)

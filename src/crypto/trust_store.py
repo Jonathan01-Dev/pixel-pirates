@@ -102,6 +102,52 @@ class TrustStore:
             print(f"  {node_id[:16]}… | Empreinte: {entry['fingerprint']} | Confiance: {self.trust_score(node_id):.1f} | {status}")
         print("----------------------------\n")
 
+    def build_revocation_packet(self, node_id: str, my_signing_key, reason: str = "compromission") -> dict:
+        """
+        Construit un paquet de révocation signé Ed25519 à broadcaster sur le réseau.
+        Conforme au Module 2.3 : 'broadcast un message signé de révocation'.
+        """
+        import time
+        payload = {
+            "type":      "REVOKE",
+            "node_id":   node_id,
+            "reason":    reason,
+            "timestamp": time.time(),
+        }
+        if my_signing_key:
+            import json
+            msg_bytes = json.dumps(payload, sort_keys=True).encode()
+            payload["signature"] = my_signing_key.sign(msg_bytes).signature.hex()
+        self.revoke(node_id, reason)
+        return payload
+
+    def apply_revocation_packet(self, packet: dict) -> bool:
+        """
+        Applique un paquet de révocation reçu d'un autre nœud.
+        Vérifie la signature Ed25519 avant d'accepter la révocation.
+        """
+        import json
+        node_id   = packet.get("node_id")
+        sig_hex   = packet.get("signature", "")
+        if not node_id:
+            return False
+        entry = self._store.get(node_id)
+        if entry and sig_hex:
+            try:
+                import nacl.signing, nacl.encoding
+                verify_key = nacl.signing.VerifyKey(
+                    bytes.fromhex(entry["public_key"]), encoder=nacl.encoding.RawEncoder
+                )
+                check = {k: v for k, v in packet.items() if k != "signature"}
+                verify_key.verify(json.dumps(check, sort_keys=True).encode(), bytes.fromhex(sig_hex))
+                self.revoke(node_id, packet.get("reason", "remote_revocation"))
+                print(f"[TRUST] 📡 Révocation distante appliquée pour {node_id[:16]}…")
+                return True
+            except Exception as e:
+                print(f"[TRUST] ❌ Signature révocation invalide : {e}")
+                return False
+        return False
+
 
 if __name__ == "__main__":
     import os

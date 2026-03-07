@@ -71,13 +71,8 @@ def receive_encrypted_message(sock, session: HandshakeSession) -> tuple[int, dic
         ciphertext = bytes.fromhex(payload["ciphertext"])
         mac        = bytes.fromhex(payload["hmac"])
     except (KeyError, ValueError) as e:
-<<<<<<< Updated upstream
-        print(f"[MSG] ❌ Payload malformé : {e}")
-        return None
-=======
         print(f"[MSG] Payload malforme : {e}")
         return None, None
->>>>>>> Stashed changes
 
     if not verify_hmac(session.session_key, nonce + ciphertext, mac):
         print("[MSG] HMAC invalide - message rejete")

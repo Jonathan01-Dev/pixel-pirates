@@ -152,7 +152,7 @@ def main():
         if "@archipel-ai" in args.text:
             try:
                 from messaging.gemini_ai import query_gemini
-                ai_reply = query_gemini("", args.text)
+                ai_reply = query_gemini([], args.text)
                 print(f"🤖 IA: {ai_reply}")
             except Exception as e:
                 print(f"⚠️ Erreur IA: {e}")

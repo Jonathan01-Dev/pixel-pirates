@@ -44,7 +44,7 @@ def send_encrypted_message(sock, session: HandshakeSession, my_node_id: str, tex
     """Envoie un message texte chiffré."""
     payload = {"from": my_node_id, "text": text, "ts": time.time()}
     send_encrypted_payload(sock, session, TYPE_MSG, my_node_id, payload)
-    print(f"[MSG] 📤 Message chiffré envoyé")
+    print("[MSG] Message chiffre envoye")
 
 
 def receive_encrypted_message(sock, session: HandshakeSession) -> tuple[int, dict] | tuple[None, None]:
@@ -53,7 +53,7 @@ def receive_encrypted_message(sock, session: HandshakeSession) -> tuple[int, dic
         msg_type, _, payload_bytes, _ = parse_packet_stream(sock)
         payload = parse_json_payload(payload_bytes)
     except Exception as e:
-        print(f"[MSG] ❌ Erreur réception : {e}")
+        print(f"[MSG] Erreur reception : {e}")
         return None, None
 
     if msg_type == TYPE_PING:
@@ -71,18 +71,23 @@ def receive_encrypted_message(sock, session: HandshakeSession) -> tuple[int, dic
         ciphertext = bytes.fromhex(payload["ciphertext"])
         mac        = bytes.fromhex(payload["hmac"])
     except (KeyError, ValueError) as e:
+<<<<<<< Updated upstream
         print(f"[MSG] ❌ Payload malformé : {e}")
         return None
+=======
+        print(f"[MSG] Payload malforme : {e}")
+        return None, None
+>>>>>>> Stashed changes
 
     if not verify_hmac(session.session_key, nonce + ciphertext, mac):
-        print("[MSG] 🚨 HMAC invalide — message rejeté")
+        print("[MSG] HMAC invalide - message rejete")
         return None, None
 
     try:
         data = json.loads(decrypt(session.session_key, nonce, ciphertext).decode("utf-8"))
         return msg_type, data
     except Exception as e:
-        print(f"[MSG] ❌ Déchiffrement échoué : {e}")
+        print(f"[MSG] Dechiffrement echoue : {e}")
         return None, None
 
 
@@ -91,7 +96,7 @@ if __name__ == "__main__":
     from crypto.handshake import perform_handshake_initiator, perform_handshake_responder
     from crypto.identity import get_my_identity
 
-    print("\n🔐 Test Module 2.4 — Messages chiffrés E2E\n")
+    print("\nTest Module 2.4 - Messages chiffres E2E\n")
 
     my_signing_key, node_alice = get_my_identity()
     node_bob   = "bob___" + "b" * 58
@@ -120,5 +125,5 @@ if __name__ == "__main__":
     server.close()
 
     assert received["msg"]["text"] == "Salut Bob depuis Archipel !"
-    print("\n  ✅ Message chiffré E2E reçu correctement")
-    print("\n✅ Tous les tests Module 2.4 passent !\n")
+    print("\n  OK: Message chiffre E2E recu correctement")
+    print("\nOK: Tous les tests Module 2.4 passent !\n")

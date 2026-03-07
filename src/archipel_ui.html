@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Archipel P2P — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap"
+    rel="stylesheet">
+  <style>
+    /* ── VARIABLES ── */
+    :root {
+      --bg-page: #f9fafb;
+      --bg-card: #ffffff;
+      --border-light: #e5e7eb;
+      --border-hover: #d1d5db;
+      --text-primary: #111827;
+      --text-secondary: #4b5563;
+      --text-tertiary: #6b7280;
+
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-bg: #eff6ff;
+
+      --success: #059669;
+      --success-bg: #d1fae5;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --warning: #d97706;
+      --warning-bg: #fef3c7;
+
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', Consolas, monospace;
+
+      --radius: 6px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .brand h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .brand p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    .node-status {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background-color: var(--success-bg);
+      color: var(--success);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .status-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--success);
+    }
+
+    .node-id {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-tertiary);
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .ports-info {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    /* ── LAYOUT GRID ── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    @media (min-width: 900px) {
+      .grid {
+        grid-template-columns: 320px 1fr;
+        align-items: start;
+      }
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── CARDS ── */
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-light);
+      background-color: #fcfcfd;
+      border-top-left-radius: var(--radius);
+      border-top-right-radius: var(--radius);
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 4px 0;
+    }
+
+    .card-desc {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin: 0;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    /* ── FORMS & INPUTS ── */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .label-hint {
+      font-weight: 400;
+      color: var(--text-tertiary);
+      font-size: 11px;
+      float: right;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text-primary);
+      background-color: #fff;
+      border: 1px solid var(--border-light);
+      border-radius: 4px;
+      padding: 8px 12px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: #9ca3af;
+    }
+
+    .hint {
+      display: block;
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 6px;
+    }
+
+    .row-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* ── BUTTONS ── */
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: #fff;
+      border-color: var(--border-light);
+      color: var(--text-secondary);
+    }
+
+    .btn-secondary:hover {
+      background-color: #f9fafb;
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+    }
+
+    .btn-danger {
+      background-color: #fff;
+      border-color: #fca5a5;
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background-color: var(--danger-bg);
+    }
+
+    .btn-success {
+      background-color: #fff;
+      border-color: #6ee7b7;
+      color: var(--success);
+    }
+
+    .btn-success:hover {
+      background-color: var(--success-bg);
+    }
+
+    /* ── OUTPUT PANELS ── */
+    .output {
+      margin-top: 16px;
+      padding: 12px;
+      background-color: #f3f4f6;
+      border: 1px solid var(--border-light);
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-all;
+      display: none;
+    }
+
+    .output.visible {
+      display: block;
+    }
+
+    .output.ok {
+      border-left: 3px solid var(--success);
+      background-color: #f0fdf4;
+      color: #166534;
+    }
+
+    .output.err {
+      border-left: 3px solid var(--danger);
+      background-color: #fef2f2;
+      color: #991b1b;
+    }
+
+    .output.info {
+      border-left: 3px solid var(--primary);
+      background-color: #eff6ff;
+      color: #1e40af;
+    }
+
+    /* ── LISTS (PEERS & FILES) ── */
+    .list-actions {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      background-color: #f9fafb;
+      border: 1px dashed var(--border-light);
+      border-radius: 4px;
+      color: var(--text-tertiary);
+      font-size: 13px;
+    }
+
+    .list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border: 1px solid var(--border-light);
+      border-radius: 4px;
+      background-color: #fff;
+    }
+
+    .list-item-main {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow: hidden;
+    }
+
+    .item-title {
+      font-weight: 500;
+      font-size: 14px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .item-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    .item-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      margin-left: 16px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .badge-ok {
+      background-color: var(--success-bg);
+      color: var(--success);
+    }
+
+    .badge-pending {
+      background-color: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .progress-bar {
+      width: 100px;
+      height: 6px;
+      background-color: var(--border-light);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background-color: var(--primary);
+      border-radius: 3px;
+    }
+
+    /* ── SYSTEM LOG ── */
+    .sys-log {
+      background-color: #1f2937;
+      color: #e5e7eb;
+      padding: 12px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      border-radius: 4px;
+    }
+
+    .log-line {
+      padding: 2px 0;
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid #374151;
+    }
+
+    .log-line:last-child {
+      border-bottom: none;
+    }
+
+    .ts {
+      color: #9ca3af;
+      flex-shrink: 0;
+    }
+
+    .msg-ok {
+      color: #34d399;
+    }
+
+    .msg-err {
+      color: #f87171;
+    }
+
+    .msg-info {
+      color: #60a5fa;
+    }
+
+    .msg-warn {
+      color: #fbbf24;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="brand">
+        <h1>Archipel Dashboard</h1>
+        <p>P2P Protocol Manager</p>
+      </div>
+      <div class="node-status">
+        <div class="status-badge">ONLINE</div>
+        <div class="node-id" id="hdr-node-id">Initializing node...</div>
+        <div class="ports-info">TCP: 7777 | UDP: 6000</div>
+      </div>
+    </header>
+
+    <div class="grid">
+
+      <!-- LEFT COLUMN -->
+      <div class="col">
+
+        <!-- CONTROLS -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Node Control</h2>
+            <p class="card-desc">Start or stop the node</p>
+          </div>
+          <div class="card-body">
+            <div class="row-inputs">
+              <div class="form-group">
+                <label>TCP Port</label>
+                <input type="number" id="start-port" value="7777" min="1024" max="65535">
+              </div>
+              <div class="form-group">
+                <label>AI Mode</label>
+                <select id="start-ai">
+                  <option value="on">Gemini Enabled</option>
+                  <option value="off">Strict Offline</option>
+                </select>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" onclick="startNode()">Start Node</button>
+              <button class="btn btn-secondary" onclick="getStatus()">Check Status</button>
+              <button class="btn btn-danger" onclick="stopNode()">Stop</button>
+            </div>
+            <div id="out-start" class="output"></div>
+            <div id="out-status" class="output"></div>
+          </div>
+        </div>
+
+        <!-- WEB OF TRUST -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Security & Trust</h2>
+            <p class="card-desc">Approve peers permanently</p>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label>Node ID to Trust</label>
+              <input type="text" id="trust-node-id" placeholder="e.g. b349e711c309...">
+              <span class="hint">Trust On First Use (TOFU) with Ed25519 signature</span>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-success" onclick="trustPeer()">Approve Peer</button>
+            </div>
+            <div id="out-trust" class="output"></div>
+          </div>
+        </div>
+
+        <!-- LOGS -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">System Logs</h2>
+          </div>
+          <div class="card-body" style="padding: 16px;">
+            <div class="sys-log" id="sys-log">
+              <div class="log-line"><span class="ts">[--:--:--]</span><span class="msg-info">UI Initialized. Server:
+                  http://localhost:8080</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="col">
+
+        <!-- MESSAGING -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Encrypted Messaging</h2>
+            <p class="card-desc">Send E2E encrypted messages</p>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label>Recipient Node ID</label>
+              <input type="text" id="msg-node-id" placeholder="Enter recipient ID...">
+            </div>
+            <div class="form-group">
+              <label>Message Payload <span class="label-hint">Prefix @archipel-ai or /ask for context-aware
+                  assistant</span></label>
+              <textarea id="msg-text" placeholder="Type your message here..."></textarea>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" onclick="sendMsg()">Send Message</button>
+              <button class="btn btn-secondary"
+                onclick="document.getElementById('msg-text').value='@archipel-ai Summarize the Archipel protocol in 2 sentences'">Test
+                AI
+                Prompt</button>
+            </div>
+            <div id="out-msg" class="output"></div>
+          </div>
+        </div>
+
+        <!-- FILE TRANSFER -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">File Transfer</h2>
+            <p class="card-desc">Share and request files securely</p>
+          </div>
+          <div class="card-body">
+            <div class="row-inputs">
+              <!-- SENT FORM -->
+              <div class="form-group" style="margin:0;">
+                <label>Send a file</label>
+                <input type="text" id="send-node-id" placeholder="Recipient ID..." style="margin-bottom:8px;">
+                <input type="text" id="send-filepath" placeholder="Local filepath (e.g. data.zip)"
+                  style="margin-bottom:12px;">
+                <button class="btn btn-secondary" style="width:100%" onclick="sendFile()">Send File Manifest</button>
+                <div id="out-send" class="output" style="margin-top:12px"></div>
+              </div>
+
+              <!-- DOWNLOAD FORM -->
+              <div class="form-group" style="margin:0; border-left: 1px solid var(--border-light); padding-left: 16px;">
+                <label>Download a file</label>
+                <input type="text" id="dl-file-id" placeholder="File Hash ID..." style="margin-bottom:12px;">
+                <span class="hint" style="margin-bottom:34px; display:block;">Requires valid SHA-256 File ID from the
+                  network</span>
+                <button class="btn btn-primary" style="width:100%" onclick="downloadFile()">Start Download</button>
+                <div id="out-dl" class="output" style="margin-top:12px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- NETWORK STATE -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Network State</h2>
+            <p class="card-desc">Peers and active file indexes</p>
+          </div>
+          <div class="card-body">
+            <div class="list-actions">
+              <button class="btn btn-secondary" onclick="listPeers()">Scan Peers</button>
+              <button class="btn btn-secondary" onclick="listFiles()">View Files Index</button>
+            </div>
+
+            <div id="dynamic-list-container" class="list-container">
+              <div class="empty-state">
+                Select an action above to populate the view.
+              </div>
+            </div>
+
+            <!-- Preserved IDs for logic -->
+            <div id="peers-container" style="display:none;"></div>
+            <div id="files-container" style="display:none;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:8080';
+
+    function ts() {
+      return new Date().toLocaleTimeString('fr-FR', { hour12: false });
+    }
+
+    function sysLog(msg, type = 'info') {
+      const log = document.getElementById('sys-log');
+      const d = document.createElement('div');
+      d.className = 'log-line';
+      d.innerHTML = `<span class="ts">[${ts()}]</span> <span class="msg msg-${type}">${msg}</span>`;
+      log.appendChild(d);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function showOut(id, msg, type = 'ok') {
+      const el = document.getElementById(id);
+      el.innerHTML = msg.replace(/\n/g, '<br>');
+      el.className = `output visible ${type}`;
+    }
+
+    async function api(path, opts = {}) {
+      try {
+        const r = await fetch(API + path, opts);
+        return await r.json();
+      } catch (e) {
+        return { ok: false, error: 'Serveur injoignable — lancez: python src/web_ui.py --port 8080' };
+      }
+    }
+
+    async function startNode() {
+      const port = document.getElementById('start-port').value;
+      const ai = document.getElementById('start-ai').value;
+      sysLog(`Starting node on port ${port}...`);
+      showOut('out-start', `⏳ Starting...`, 'info');
+      const r = await api('/api/status');
+      if (r && r.node_id) {
+        document.getElementById('hdr-node-id').textContent = r.node_id;
+        showOut('out-start', `✅ Node Active\nID: ${r.node_id}\nPeers: ${r.peers}\nFiles: ${r.files}`, 'ok');
+        sysLog(`Node connected. ID: ${r.node_id.slice(0, 16)}...`, 'ok');
+      } else {
+        showOut('out-start', '❌ ' + (r?.error || 'Unknown error. Check terminal.'), 'err');
+      }
+    }
+
+    async function stopNode() {
+      showOut('out-start', 'To stop the node, press Ctrl+C in the terminal.', 'info');
+    }
+
+    async function getStatus() {
+      sysLog('Requesting node status...');
+      const r = await api('/api/status');
+      if (r && r.node_id) {
+        document.getElementById('hdr-node-id').textContent = r.node_id;
+        const txt = [
+          `Node ID: ${r.node_id}`,
+          `Protocol: Archipel P2P Secure`,
+          `Peers: ${r.peers} active`,
+          `Files: ${r.files} indexed`
+        ].join('\n');
+        showOut('out-status', txt, 'ok');
+        sysLog(`Status refreshed. Peers: ${r.peers}`, 'ok');
+      } else {
+        showOut('out-status', '❌ ' + (r?.error || 'Node offline'), 'err');
+      }
+    }
+
+    async function listPeers() {
+      sysLog('Scanning peer table...');
+      const r = await api('/api/peers');
+      const container = document.getElementById('dynamic-list-container');
+
+      if (!r || r.error) {
+        container.innerHTML = `<div class="empty-state" style="color:var(--danger)">${r?.error || 'Error fetching peers'}</div>`;
+        return;
+      }
+
+      const peers = r.peers || {};
+      const count = Object.keys(peers).length;
+
+      if (count === 0) {
+        container.innerHTML = '<div class="empty-state">No peers discovered in the network yet. Waiting for UDP broadcasts.</div>';
+        sysLog('No peers found', 'warn');
+        return;
+      }
+
+      sysLog(`Discovered ${count} peer(s)`, 'ok');
+
+      ['msg-node-id', 'send-node-id', 'trust-node-id'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el.value) el.placeholder = Object.keys(peers)[0] + ' (auto-detected)';
+      });
+
+      let html = '';
+      Object.entries(peers).forEach(([id, p]) => {
+        html += `
+        <div class="list-item">
+          <div class="list-item-main">
+            <div class="item-title">${id.slice(0, 24)}...</div>
+            <div class="item-meta">${p.ip}:${p.tcp_port} | Last seen: ${new Date(p.last_seen * 1000).toLocaleTimeString()}</div>
+          </div>
+          <div class="item-actions">
+            <button class="btn btn-secondary" onclick="document.getElementById('msg-node-id').value='${id}'; document.getElementById('msg-node-id').scrollIntoView({behavior:'smooth'}); document.getElementById('msg-text').focus();" style="padding:4px 10px; font-size:11px;">Message</button>
+          </div>
+        </div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    async function sendMsg() {
+      const nodeId = document.getElementById('msg-node-id').value.trim();
+      const text = document.getElementById('msg-text').value.trim();
+      if (!text) { showOut('out-msg', '❌ Enter a message payload', 'err'); return; }
+
+      showOut('out-msg', '⏳ Processing...', 'info');
+      sysLog(`Processing message: ${text.slice(0, 20)}...`);
+
+      const r = await api('/api/msg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ node_id: nodeId, text })
+      });
+
+      if (r && r.ok) {
+        let out = `<b>✅ Message Sent (E2E)</b><br>To: ${nodeId.slice(0, 16)}...<br>Payload: ${text}`;
+        if (r.ai_reply) out += `<br><br><b>AI Reply:</b><br>${r.ai_reply}`;
+        showOut('out-msg', out, 'ok');
+        sysLog('Message successfully sent', 'ok');
+        document.getElementById('msg-text').value = '';
+      } else {
+        showOut('out-msg', '❌ ' + (r?.error || 'Dispatch Failed'), 'err');
+        sysLog('Failed to send message: ' + (r?.error || ''), 'err');
+      }
+    }
+
+    async function sendFile() {
+      const nodeId = document.getElementById('send-node-id').value.trim();
+      const filepath = document.getElementById('send-filepath').value.trim();
+      if (!nodeId) { showOut('out-send', '❌ Enter Recipient ID', 'err'); return; }
+      if (!filepath) { showOut('out-send', '❌ Enter local filepath', 'err'); return; }
+
+      showOut('out-send', '⏳ Initiating file transfer manifest...', 'info');
+      sysLog(`Sending file manifest: ${filepath} -> ${nodeId.slice(0, 16)}...`);
+
+      const r = await api('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ node_id: nodeId, filename: filepath })
+      });
+
+      if (r && r.ok) {
+        showOut('out-send', `✅ Manifest Sent.<br>File: ${filepath}<br>The peer should initiate the chunk transfer automatically.`, 'ok');
+        sysLog(`Manifest dispatched: ${filepath}`, 'ok');
+      } else {
+        showOut('out-send', '❌ ' + (r?.error || 'API Error'), 'err');
+        sysLog('File manifest failed: ' + (r?.error || ''), 'err');
+      }
+    }
+
+    async function listFiles() {
+      sysLog('Loading file directory index...');
+      const r = await api('/api/files');
+      const container = document.getElementById('dynamic-list-container');
+
+      if (!r || r.error) {
+        container.innerHTML = `<div class="empty-state" style="color:var(--danger)">${r?.error || 'Index load error'}</div>`;
+        return;
+      }
+
+      const files = r.files || {};
+      if (Object.keys(files).length === 0) {
+        container.innerHTML = '<div class="empty-state">No files currently indexed in the local tracker.</div>';
+        sysLog('Empty file index', 'warn');
+        return;
+      }
+
+      sysLog(`Indexed ${Object.keys(files).length} file(s)`, 'ok');
+      let html = '';
+      Object.entries(files).forEach(([id, f]) => {
+        const isComplete = f.pct === 100;
+        const badge = isComplete
+          ? '<span class="badge badge-ok">Complete</span>'
+          : `<span class="badge badge-pending">Transferring...</span>`;
+
+        html += `
+        <div class="list-item">
+          <div class="list-item-main">
+            <div class="item-title">${f.name}</div>
+            <div class="item-meta">ID: ${id.slice(0, 20)}... | ${f.chunks_have}/${f.nb_chunks} chunks</div>
+            ${!isComplete ? `<div class="progress-bar" style="margin-top:4px"><div class="progress-fill" style="width:${f.pct}%"></div></div>` : ''}
+          </div>
+          <div class="item-actions">
+            ${badge}
+            ${!isComplete ? `<button class="btn btn-primary" onclick="document.getElementById('dl-file-id').value='${id}'; document.getElementById('dl-file-id').scrollIntoView({behavior:'smooth'})" style="padding:4px 10px; font-size:11px;">Pull</button>` : ''}
+          </div>
+        </div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    async function downloadFile() {
+      const fileId = document.getElementById('dl-file-id').value.trim();
+      if (!fileId) { showOut('out-dl', '❌ Enter a target File ID', 'err'); return; }
+
+      showOut('out-dl', '⏳ Connecting to swarm for transfer...', 'info');
+      sysLog(`Initiating download for ID: ${fileId.slice(0, 16)}...`);
+
+      const r = await api('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_id: fileId })
+      });
+
+      if (r && r.ok) {
+        showOut('out-dl', `✅ Download Job Started<br>File ID: ${fileId}<br>Check the File Index to monitor progress.`, 'ok');
+        sysLog('Download background job initiated', 'ok');
+      } else {
+        showOut('out-dl', '❌ ' + (r?.error || 'Unable to connect to peers holding this file.'), 'err');
+        sysLog('Download failed: ' + (r?.error || ''), 'err');
+      }
+    }
+
+    async function trustPeer() {
+      const nodeId = document.getElementById('trust-node-id').value.trim();
+      if (!nodeId) { showOut('out-trust', '❌ Provide a Valid Node ID', 'err'); return; }
+
+      sysLog(`Approving identity: ${nodeId.slice(0, 16)}...`);
+      const r = await api('/api/trust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ node_id: nodeId })
+      });
+
+      if (r && r.ok) {
+        showOut('out-trust', `✅ Identity Approved<br>Node ID: ${nodeId}<br>Ed25519 Signature securely recorded.`, 'ok');
+        sysLog('Peer added to trusted ledger', 'ok');
+      } else {
+        showOut('out-trust', '❌ ' + (r?.error || 'Operation failed'), 'err');
+      }
+    }
+
+    // Init
+    (async () => {
+      sysLog('Initializing dashboard client...');
+      const r = await api('/api/status');
+      if (r && r.node_id) {
+        document.getElementById('hdr-node-id').textContent = r.node_id;
+        sysLog(`Connected to local daemon.`, 'ok');
+      } else {
+        sysLog('Daemon not responding. Start daemon using python src/cli.py', 'warn');
+      }
+    })();
+  </script>
+</body>
+
+</html>

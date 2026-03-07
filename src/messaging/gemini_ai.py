@@ -8,14 +8,27 @@ import json
 import urllib.request
 import urllib.error
 
+<<<<<<< Updated upstream
 def query_gemini(conversation_context: str, user_query: str) -> str:
     api_key = os.environ.get("GEMINI_API_KEY")
+=======
+def query_gemini(conversation_context: list, user_query: str) -> str:
+    """
+    Interroge l'API Gemini avec un contexte de conversation.
+    conversation_context: Liste des derniers messages [(sender, text), ...]
+    """
+    # Clé API depuis la variable d'environnement (ex: GEMINI_API_KEY)
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+>>>>>>> Stashed changes
     if not api_key:
-        return "[IA] Erreur: Clé API Gemini non configurée (variable d'environnement GEMINI_API_KEY manquante)."
+        return "[IA] Erreur: Clé API Gemini non configurée."
 
+    # v1beta + gemini-2.5-flash (modèle actuel)
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     
-    prompt = f"Contexte récent de la conversation:\n{conversation_context}\n\nQuestion utilisateur:\n{user_query}"
+    # Construction du prompt avec historique
+    history_str = "\n".join([f"- {s}: {t}" for s, t in conversation_context])
+    prompt = f"Tu es l'assistant du protocole P2P Archipel. Voici le contexte de la conversation récente:\n{history_str}\n\nQuestion de l'utilisateur:\n{user_query}"
     
     payload = {
         "contents": [
@@ -34,10 +47,18 @@ def query_gemini(conversation_context: str, user_query: str) -> str:
             result = json.loads(response.read().decode('utf-8'))
             return result["candidates"][0]["content"]["parts"][0]["text"]
             
-    except urllib.error.URLError as e:
-        return f"[IA] Mode hors-ligne strict (échec API: {e})"
-    except (KeyError, IndexError, ValueError):
-        return "[IA] Impossible de comprendre la réponse de l'API Gemini."
+    except urllib.error.HTTPError as e:
+        # Masquer la clé pour les logs publics
+        masked_key = f"{api_key[:4]}...{api_key[-4:]}" if api_key else "NONE"
+        error_body = ""
+        try:
+            error_body = e.read().decode()
+        except:
+            pass
+        return f"[IA] Erreur API {e.code}: {e.reason} (Key: {masked_key})\n{error_body}"
+    except Exception as e:
+        return f"[IA] Erreur système: {e}"
 
 if __name__ == "__main__":
-    print(query_gemini("Alice dit: Bonjour le réseau!", "Que dit Alice ?"))
+    test_context = [("Alice", "Bonjour"), ("Bob", "Salut Archipel")]
+    print(query_gemini(test_context, "Qui est Alice ?"))

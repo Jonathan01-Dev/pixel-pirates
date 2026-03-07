@@ -13,7 +13,7 @@ from crypto.handshake import perform_handshake_initiator
 from crypto.messaging import send_encrypted_message
 
 # ← IP de la Machine A (serveur)
-IP_MACHINE_A = sys.argv[1] if len(sys.argv) > 1 else "172.20.10.3"
+IP_MACHINE_A = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 PORT = 7777
 
 print(f"\n🔐 Test E2E Archipel → {IP_MACHINE_A}:{PORT}\n")

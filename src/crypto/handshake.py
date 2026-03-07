@@ -44,7 +44,7 @@ def perform_handshake_initiator(sock, my_node_id: str, my_signing_key=None) -> H
     sock.sendall(build_json_packet(TYPE_HANDSHAKE_INIT, my_node_id, {
         "public_x25519": my_pub.hex(),
     }))
-    print(f"[HANDSHAKE] → INIT envoyé (pub: {my_pub.hex()[:16]}…)")
+    print(f"[HANDSHAKE] INIT envoye (pub: {my_pub.hex()[:16]}...)")
 
     # 2. Réception ACK
     msg_type, peer_node_id, payload_bytes, _ = parse_packet_stream(sock)
@@ -66,9 +66,9 @@ def perform_handshake_initiator(sock, my_node_id: str, my_signing_key=None) -> H
     sock.sendall(build_json_packet(TYPE_HANDSHAKE_AUTH, my_node_id, {
         "sig": signature.hex()
     }))
-    print(f"[HANDSHAKE] → AUTH envoyé")
+    print(f"[HANDSHAKE] AUTH envoye")
 
-    print(f"[HANDSHAKE] ✅ Session établie avec {peer_node_id[:16]}…")
+    print(f"[HANDSHAKE] Session etablie avec {peer_node_id[:16]}...")
     return HandshakeSession(session_key, peer_node_id, peer_pub_bytes)
 
 
@@ -88,7 +88,7 @@ def perform_handshake_responder(sock, my_node_id: str, my_signing_key=None, firs
         raise ValueError(f"Attendu HANDSHAKE_INIT, reçu 0x{msg_type:02X}")
 
     peer_pub_bytes = bytes.fromhex(payload["public_x25519"])
-    print(f"[HANDSHAKE] ← INIT reçu de {peer_node_id[:16]}…")
+    print(f"[HANDSHAKE] INIT recu de {peer_node_id[:16]}...")
 
     # 2. Enregistrement ACK
     my_priv, my_pub = generate_ephemeral_keypair()
@@ -98,7 +98,7 @@ def perform_handshake_responder(sock, my_node_id: str, my_signing_key=None, firs
         "public_x25519": my_pub.hex(),
         "salt":          salt.hex(),
     }))
-    print(f"[HANDSHAKE] → ACK envoyé (pub: {my_pub.hex()[:16]}…)")
+    print(f"[HANDSHAKE] ACK envoye (pub: {my_pub.hex()[:16]}...)")
 
     session_key = derive_session_key(compute_shared_secret(my_priv, peer_pub_bytes), salt=salt)
 
@@ -108,12 +108,12 @@ def perform_handshake_responder(sock, my_node_id: str, my_signing_key=None, firs
         raise ValueError(f"Attendu HANDSHAKE_AUTH, reçu 0x{msg_type:02X}")
         
     auth_payload = parse_json_payload(payload_bytes)
-    print(f"[HANDSHAKE] ← AUTH reçu")
+    print(f"[HANDSHAKE] AUTH recu")
 
     if auth_peer_id != peer_node_id:
         raise ValueError("L'identité de l'émetteur a changé pendant le handshake !")
         
     # Idéalement revérifier auth_payload["sig"] avec peer_node_id (Ed25519 pubkey) ici.
 
-    print(f"[HANDSHAKE] ✅ Session établie avec {peer_node_id[:16]}…")
+    print(f"[HANDSHAKE] Session etablie avec {peer_node_id[:16]}...")
     return HandshakeSession(session_key, peer_node_id, peer_pub_bytes)

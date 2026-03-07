@@ -47,7 +47,7 @@ def get_my_identity():
             os.chmod(KEY_PATH, 0o600)
         except Exception:
             pass  # Windows ne supporte pas chmod
-        print(f"[PKI] ✅ Nouvelle identité générée → {KEY_PATH}")
+        print(f"[PKI] Nouvelle identite generee -> {KEY_PATH}")
 
     else:
         # Chargement robuste — gère les fichiers corrompus
@@ -56,12 +56,12 @@ def get_my_identity():
                 seed_bytes = f.read()  # ← lu une seule fois, réutilisé plus bas
             if HAVE_PYNACL:
                 signing_key = nacl.signing.SigningKey(seed_bytes)
-                print(f"[PKI] 🔑 Identité chargée depuis {KEY_PATH}")
+                print(f"[PKI] Identite chargee depuis {KEY_PATH}")
             else:
                 signing_key = None
-                print(f"[PKI] 🔑 Identité (fallback) chargée depuis {KEY_PATH}")
+                print(f"[PKI] Identite (fallback) chargee depuis {KEY_PATH}")
         except Exception:
-            print(f"[PKI] ⚠️ Clé corrompue — regénération...")
+            print(f"[PKI] Cle corrompue - regeneration...")
             os.remove(KEY_PATH)
             return get_my_identity()  # Relance récursivement
 
@@ -77,4 +77,4 @@ def get_my_identity():
 if __name__ == "__main__":
     signing_key, my_id = get_my_identity()
     print(f"Mon ID Archipel : {my_id}")
-    print(f"Fingerprint     : {my_id[:16]}…")
+    print(f"Fingerprint     : {my_id[:16]}...")

@@ -1,120 +1,127 @@
 # ARCHIPEL — Protocole P2P Chiffré et Décentralisé
 
-## 1. Description du Protocole Archipel
-Archipel est un protocole de communication Peer-to-Peer (P2P) conçu pour fonctionner sur un réseau local pur (zéro connexion Internet externe), sans serveur central ni tracker DNS. 
+## 1. Description
 
-Chaque membre du réseau (un nœud) agit à la fois comme client et comme serveur décentralisé. Le système garantit la sécurité et l'identité des paires grâce à une cryptographie forte asymétrique (Ed25519) et symétrique (AES-256-GCM), ainsi qu'une politique de confiance distribuée (*Web of Trust*).
+Archipel est un protocole de communication Peer-to-Peer (P2P) conçu pour fonctionner sur un réseau local pur (zéro connexion Internet externe), sans serveur central ni tracker DNS.
 
-## 2. Architecture et Choix Techniques
+Chaque nœud agit à la fois comme client et serveur décentralisé. Le système garantit la sécurité et l'identité des pairs grâce à une cryptographie forte : **Ed25519** (signatures), **X25519** (échange de clés éphémères), **AES-256-GCM** (chiffrement symétrique), et une politique de confiance distribuée (*Web of Trust* TOFU).
 
-### Discovery (Module Réseau Multicast)
-- **Technologie :** UDP Multicast (groupe `239.255.42.99:6000`).
-- **Choix technique :** Sur de petits réseaux LAN, le multicast évite d'avoir à connaître les adresses IP à l'avance et ne requiert pas de point d'accès Wi-Fi ou de tracker externe.
-- **Principe :** Chaque nœud émet un paquet `HELLO` toutes les 30s. Si un nouveau pair reçoit un `HELLO`, il lui répond en TCP Unicast avec sa `PEER_LIST`.
+## 2. Langage et Justification
 
-### Cryptographie & Handshake (Séquence à 3 temps)
-- **Technologie :** `libsodium` / `cryptography` via PyNaCl.
-- Séquence de poignée de main cryptographique inspirée de *Noise Protocol* entre Alice (Initiatrice) et Bob (Rondant) :
-  1. `INIT` : Alice envoie sa clé publique éphémère (X25519).
-  2. `ACK` : Bob répond avec sa clé publique éphémère (X25519) et un `salt`. Bob et Alice peuvent dès lors dériver une clé de session symétrique `session_key = HKDF(shared_secret, salt)`.
-  3. `AUTH` : Alice s'authentifie formellement en confirmant l'ouverture de sa session via sa clé à long-terme **Ed25519** (ce qui évite les attaques Man-In-The-Middle, *MITM*).
+**Langage principal : Python 3.9+**
 
-### Le Web Of Trust (TOFU)
-Au lieu d'utiliser une Autorité de Certification (CA), le réseau s'appuie sur le *Trust On First Use (TOFU)*. L'empreinte cryptographique permanente (`fingerprint` basée sur Ed25519) d'un premier pair est enregistrée de manière persistante. Toute future connexion du même ID provenant d'une clé différente sera rejetée (MITM bloqué).
+Choix justifié par :
+- **Productivité maximale** sur un hackathon de 24h
+- **Ecosystème cryptographique mature** : PyNaCl (libsodium), bibliothèque `cryptography` (PyCA)
+- **Sockets TCP/UDP natifs** dans la bibliothèque standard
+- **Prototypage rapide** sans sacrifier la robustesse
 
-### Format de Paquet Binaire Strict
-Conformément au cahier des charges, l'échange n'est pas de simples chaînes. Chaque paquet contient un en-tête de 41 octets :
-`MAGIC(4) | TYPE(1) | NODE_ID(32) | PAYLOAD_LEN(4)` suivi du `PAYLOAD` chiffré JSON et du `HMAC-SHA256(32)`.
+## 3. Architecture et Choix Techniques
 
-### Chunking et Partage (Sprint 3)
-Fichiers divisés en "Chunks" de 512 KB. L'expéditeur génère un paquet `MANIFEST` contenant les index et les signatures de chaque morceau, ce qui permet des transferts asynchrones (et potentiellement parallèles côté client).
+### Transport Local
+
+| Couche | Technologie | Rôle |
+|--------|-------------|------|
+| Découverte | UDP Multicast `239.255.42.99:6000` | Annonces HELLO toutes les 30s |
+| Transfert | TCP Sockets port `7777` | Échanges chiffrés E2E fiables |
+
+### Cryptographie & Handshake (3 temps)
+
+Séquence inspirée du *Noise Protocol* :
+1. `INIT` : Alice envoie sa clé publique éphémère X25519
+2. `ACK`  : Bob répond avec sa clé éphémère + salt → dérivation `session_key = HKDF(shared_secret, salt)`
+3. `AUTH` : Alice s'authentifie via sa clé long-terme **Ed25519** (protection MITM)
+
+### Web of Trust (TOFU)
+
+Le réseau utilise *Trust On First Use* à la place d'une CA centrale. L'empreinte Ed25519 d'un pair est enregistrée dès le premier contact. Toute reconnexion avec une clé différente est rejetée.
+
+### Format de Paquet Binaire
+
+```
+MAGIC(4) | TYPE(1) | NODE_ID(32) | PAYLOAD_LEN(4) | PAYLOAD(var) | HMAC-SHA256(32)
+```
+Header fixe = **41 bytes** · Signature = **32 bytes** HMAC-SHA256
+
+### Transfert de Fichiers (Sprint 3)
+
+Fichiers découpés en chunks de **512 KB**. L'expéditeur génère un `MANIFEST` signé (hash SHA-256, nombre de chunks), permettant les téléchargements asynchrones et la reprise après interruption.
 
 ### Intégration IA (Sprint 4)
-Gemini 2.5 ("@archipel-ai") est intégré dans le client CLI pour interpréter localement un message sans exposer l'intégralité du réseau.
 
-## 3. Modifications apportées pour le Hackathon
+Gemini est intégré via le tag `@archipel-ai` ou `/ask` dans le CLI et la Web UI.
 
-L'implémentation de départ a été modifiée en profondeur afin de satisfaire à 100% le cahier des charges de "LOME BUSINESS SCHOOL" :
+## 4. Instructions d'Utilisation
 
-1. **Format des Paquets Binaires Spécifiques :** Suppression des payloads simples (ex: `f"HELLO|node"`) au profit du protocole binaire avec headers structurés dans `src/network/packet.py` (Spécification S0 validée).
-2. **Persistance des données Peer Table :** La table de peers a été enrichie d'une mécanique `self._save()` et `self._load()` écrivant sur le disque au format JSON (dans `.archipel/`) pour retenir les pairs entre deux connexions (Spécification S1).
-3. **Refonte complète du TCP Server & Handshake :** Implémentation du système `Handshake` à trois tours avec échange d'identité permanente signée (`INIT` -> `ACK` -> `AUTH`) (Spécification S2).
-4. **Implémentation de Chunking Fichiers :** Création du dossier `src/transfer/`, de la logique de calcul de SHA-256 et du téléchargement asynchrone pour passer des fichiers supérieurs à 50 Mo (Spécification S3).
-5. **CLI Principal et Intégration Gemini :** Création du script `cli.py` en racine de l'application permettant d'invoquer via Arguments terminaux les différentes commandes demandées par le Jury. L'appel explicite de tag `@archipel-ai` déclenche l'appel externe à `Gemini` (Spécification S4).
+### Prérequis
 
-## 4. Instructions d'Utilisation / Demo
+```bash
+python -m pip install -r requirements.txt
+# Optionnel (IA) :
+$env:GEMINI_API_KEY = "votre_clé_api"
+```
 
-### Pré-requis
-- Python 3.9+
-- Les bibliothèques listées dans le `requirements.txt` (notamment `cryptography` ou `PyNaCl`).
-- Clé Google Gemini définie dans l'environnement `export GEMINI_API_KEY="...apikey..."` (uniquement si test de l'IA).
+### Générer son identité
 
-### Lancer la Plateforme et la Démo
-
-Générer sa propre identité :
 ```bash
 python src/clé.py --name Alice
 ```
 
-1. **Démarrer le nœud (Fenêtre Terminal 1) :**
+### Lancer le nœud
+
 ```bash
+# Terminal 1 — Nœud Alice
 python src/cli.py start --port 7777
-```
-*(Le serveur se mettra alors à diffuser des paquets UDP toutes les 30s. Ouvrez un nœud sur une machine B pour voir les connexions s'établir)*
 
-2. **Lister les voisins :**
+# Terminal 2 — Nœud Bob (même LAN)
+python src/cli.py start --port 7778
+```
+
+### Commandes CLI
+
 ```bash
-python src/cli.py peers
+python src/cli.py peers                             # Voir les pairs
+python src/cli.py msg <NODE_ID> "Salut Bob!"        # Message chiffré E2E
+python src/cli.py msg <NODE_ID> "@archipel-ai ..."  # Interroger l'IA
+python src/cli.py send <NODE_ID> fichier.zip        # Envoyer un fichier
+python src/cli.py download <FILE_ID>                # Télécharger un fichier
+python src/cli.py status                            # Voir l'état du nœud
 ```
 
-3. **Envoyer un message à un autre nœud chiffré :**
+### Interface Web
+
 ```bash
-python src/cli.py msg [NODE_ID] "Salut Bob, comment vas-tu ?"
-# Et pour parler à l'IA :
-python src/cli.py msg [NODE_ID] "@archipel-ai Résume le message précédent s'il te plaît"
+python src/web_ui.py
+# Ouvrir : http://localhost:8080
 ```
 
-4. **Transférer un Fichier Volumineux (50Mo) :**
-Générez un fichier de test :
-```bash
-# Permet de cibler l'envoi
-python src/cli.py send [NODE_ID] mon_gros_fichier.zip
+## 5. Structure du Projet
+
+```
+src/
+├── cli.py               # Interface CLI principale
+├── web_ui.py            # Serveur HTTP (dashboard)
+├── archipel_ui.html     # Interface Web
+├── crypto/
+│   ├── identity.py      # Génération/chargement clés Ed25519
+│   ├── handshake.py     # Handshake 3-temps (INIT/ACK/AUTH)
+│   ├── messaging.py     # Chiffrement/déchiffrement messages
+│   └── crypto.py        # Primitives AES-256-GCM + HMAC
+├── network/
+│   ├── packet.py        # Format binaire Archipel v1
+│   ├── discovery.py     # Émetteur UDP Multicast
+│   ├── listener.py      # Récepteur UDP Multicast
+│   └── tcp_server.py    # Serveur TCP (connexions pairs)
+├── transfer/
+│   ├── chunking.py      # Découpage fichiers + manifests
+│   └── transfer_manager.py  # Orchestration téléchargements
+└── messaging/
+    └── gemini_ai.py     # Intégration Gemini API
 ```
 
-Une fois validé, la machine B recevra une notification `MANIFEST reçu`. Depuis Node B, tapez :
-```bash
-python src/cli.py download [FILE_ID]
-```
+## 6. Membres de l'équipe
 
-### Simulation / Flow Hackathon Complet
-Voici les étapes exactes que nous avons suivies pour compléter l'ensemble des Sprints jusqu'au bout, ainsi que l'architecture qui tourne désormais en locale :
+- **OURO-M'BON Diyanatou** — Planification stratégique et validation des exigences
+- *[Ajouter les autres membres de l'équipe ici]*
 
-1. Configuration
-```bash
-python src/clé.py --name Alice
-# et sur le node 2:
-python src/clé.py --name Bob
-```
-
-2. Lancement du "Server" Alice :
-```bash
-python src/cli.py start
-```
-
-3. Interroger tes pairs via le "Client" Bob (dans un terminal 2), envoyer un message puis un fichier compressé de ton choix :
-```bash
-python src/cli.py msg [NODE_ID_ALICE] "Hello Archipel!"
-python src/cli.py send [NODE_ID_ALICE] path/vers/un/fichier.zip
-```
-
-3. Lancer un rapatriement de Fichier depuis Bob (si on passe en MANIFEST Rarest)
-```bash
-python src/cli.py download [FILE_ID]
-python src/cli.py receive
-```
-
-## Membres de l'équipe
-- AI Assistant : Support complet des sprints (Réseau Binaire, Chunking, Intégration Interface)
-- Toi : Planification stratégique et validation des exigences !
-
-🎉 **Bonne chance. Construisez quelque chose qui mérite de survivre.** 
+🎉 **Bonne chance. Construisez quelque chose qui mérite de survivre.**

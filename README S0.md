@@ -3,22 +3,22 @@
 
 ## Stack Technique
 
-Le cœur d'Archipel repose sur **Python 3.11+ avec asyncio** comme langage principal. Dans le contexte d'un hackathon de 24 heures, la productivité prime sur la performance brute, et Python offre l'écosystème cryptographique le plus mature et le plus accessible qui soit.
+Le cœur d'Archipel repose sur **Python 3.9+** comme langage principal. Dans le contexte d'un hackathon de 24 heures, la productivité prime sur la performance brute, et Python offre l'écosystème cryptographique le plus mature et le plus accessible qui soit : PyNaCl expose directement libsodium (la bibliothèque cryptographique la plus auditée au monde), et la bibliothèque standard couvre déjà les sockets TCP/UDP sans dépendance externe.
 
-Pour le transport local, Archipel combine deux technologies complémentaires tirées directement du sujet. La découverte des pairs repose sur UDP Multicast à l'adresse 239.255.42.99:6000 : chaque nœud émet un paquet HELLO toutes les 30 secondes à l'ensemble du réseau local, sans établir de connexion, sans cibler un pair en particulier. C'est léger, instantané, et ne nécessite aucune configuration préalable. Une fois les pairs identifiés, le transfert des données bascule sur TCP Sockets (port 7777) : la connexion point-à-point garantit la fiabilité des échanges, le contrôle de flux, et la livraison ordonnée des chunks — indispensable pour des transferts de fichiers volumineux.
+Pour le transport local, Archipel combine deux technologies complémentaires tirées directement du sujet. La découverte des pairs repose sur **UDP Multicast** à l'adresse `239.255.42.99:6000` : chaque nœud émet un paquet HELLO toutes les 30 secondes à l'ensemble du réseau local, sans établir de connexion préalable. C'est léger, instantané, et ne nécessite aucune configuration. Une fois les pairs identifiés, le transfert des données bascule sur **TCP Sockets (port 7777)** : la connexion point-à-point garantit la fiabilité des échanges, le contrôle de flux, et la livraison ordonnée des chunks — indispensable pour des transferts de fichiers volumineux.
+
 Cette combinaison UDP + TCP est exactement celle préconisée par le document technique : chaque protocole intervient là où il excelle.
 
-Une fois les pairs connus, les transferts de données transitent via **TCP sur le port 7777** avec un encodage TLV (Type-Length-Value). Le protocole TCP garantit la fiabilité des échanges et assure un contrôle de flux natif, indispensable pour des transferts de fichiers volumineux.
+La couche cryptographique s'appuie sur **PyNaCl** (bindings libsodium) pour les clés Ed25519 et X25519, et sur la bibliothèque `cryptography` (PyCA) pour AES-256-GCM et HMAC-SHA256.
 
-La couche cryptographique s'appuie sur **PyNaCl et PyCryptodome**, deux bibliothèques de référence dans l'industrie. PyNaCl fournit des bindings directs vers libsodium — l'une des implémentations cryptographiques les plus auditées au monde — tandis que PyCryptodome complète l'ensemble pour les primitives symétriques.
+L'interface utilisateur combine un **CLI interactif** (`src/cli.py`) pour les démonstrations rapides en terminal, et une **UI Web légère** (`src/web_ui.py` + `src/archipel_ui.html`) servie localement sur le port 8080 pour une présentation visuelle devant le jury.
 
-L'interface utilisateur combine un **CLI interactif via la bibliothèque rich** pour les démonstrations rapides en terminal, et une **UI Web légère construite avec aiohttp** pour une présentation plus visuelle devant le jury.
-
-Enfin, le stockage local des métadonnées et des index de chunks repose sur **SQLite ou JSON selon les besoins**. Ce choix délibéré élimine toute dépendance d'infrastructure : aucun serveur de base de données, aucune configuration, un simple fichier sur le disque.
+Le stockage local des métadonnées repose sur **JSON** dans le dossier `.archipel/`. Ce choix délibéré élimine toute dépendance d'infrastructure : aucun serveur de base de données, un simple fichier sur le disque.
 
 
 ## Schéma d'Architecture
 
+```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     RÉSEAU LOCAL (LAN/WiFi)                     │
 │                                                                 │
@@ -28,11 +28,11 @@ Enfin, le stockage local des métadonnées et des index de chunks repose sur **S
 │   │ Ed25519  │◄──────────────────────────────│ Ed25519  │      │
 │   │  KeyPair │                               │  KeyPair │      │
 │   │          │   TCP :7777 (transfert E2E)   │          │      │
-│   │          │◄─────════════════════════════►│          │      │
+│   │          │◄══════════════════════════════│          │      │
 │   └────┬─────┘                               └────┬─────┘      │
 │        │                                          │            │
 │        │         TCP :7777 (transfert E2E)        │            │
-│        └──────────════════════════════════────────┘            │
+│        └══════════════════════════════════════════┘            │
 │                          │                                      │
 │                     ┌────▼─────┐                               │
 │                     │  Nœud C  │   Chaque nœud :               │
@@ -41,66 +41,70 @@ Enfin, le stockage local des métadonnées et des index de chunks repose sur **S
 │                     │  KeyPair │   • Chunks BitTorrent-style   │
 │                     └──────────┘   • Web of Trust (TOFU)      │
 └─────────────────────────────────────────────────────────────────┘
+```
 
 
+## Format de Paquet Archipel v1 — Spécification
 
+Conformément au cahier des charges, les échanges utilisent un protocole binaire strict (pas de simples chaînes JSON).
 
-## Format de Paquet ARCK v1
+```
+┌──────────┬──────────┬───────────┬────────────────────────┐
+│  MAGIC   │  TYPE    │  NODE_ID  │  PAYLOAD_LEN           │
+│  "ARCH"  │  1 byte  │  32 bytes │  4 bytes (uint32_BE)   │
+│  4 bytes │          │ (Ed25519  │                        │
+│          │          │  pub key) │                        │
+├──────────┴──────────┴───────────┴────────────────────────┤
+│  PAYLOAD (chiffré AES-256-GCM, longueur variable)        │
+├──────────────────────────────────────────────────────────┤
+│  HMAC-SHA256 SIGNATURE  (32 bytes)                       │
+└──────────────────────────────────────────────────────────┘
 
-┌──────────┬─────────┬────────┬───────┬─────────────┬──────────┐
-│  MAGIC   │ VERSION │  TYPE  │ FLAGS │ PAYLOAD_LEN │ CHECKSUM │
-│  "ARCK"  │  0x01   │ 1 byte │1 byte │   4 bytes   │  4 bytes │
-│  4 bytes │ 1 byte  │        │       │             │  SHA-256 │
-├──────────┴─────────┴────────┴───────┴─────────────┴──────────┤
-│                    SENDER_ID (32 bytes)                       │
-│              Clé publique Ed25519 = identité nœud             │
-├───────────────────────────────────────────────────────────────┤
-│                     NONCE (12 bytes)                          │
-│               AES-GCM nonce unique par paquet                 │
-├───────────────────────────────────────────────────────────────┤
-│                    PAYLOAD (N bytes)                          │
-│            Chiffré AES-256-GCM si FLAG_ENCRYPTED              │
-├───────────────────────────────────────────────────────────────┤
-│                  SIGNATURE (64 bytes)                         │
-│              Ed25519 sur (header + payload)                   │
-└───────────────────────────────────────────────────────────────┘
+En-tête fixe : 41 bytes  (4 + 1 + 32 + 4)
+Signature     : 32 bytes (HMAC-SHA256)
+Taille min    : 73 bytes
+```
 
-Header fixe   : 59 bytes
-Signature     : 64 bytes
-Taille min    : 123 bytes
 ### Types de paquets
 
-| Code | Nom | Usage |
-|------|-----|-------|
-| `0x01` | `HELLO` | Annonce de présence UDP toutes les 30s |
-| `0x02` | `PEER_LIST` | Liste des pairs connus (TCP unicast) |
-| `0x03` | `HANDSHAKE_INIT` | Initiation du handshake chiffré |
-| `0x04` | `HANDSHAKE_ACK` | Confirmation handshake |
-| `0x10` | `MESSAGE` | Message texte chiffré |
-| `0x20` | `FILE_MANIFEST` | Annonce d'un fichier disponible |
-| `0x21` | `CHUNK_REQUEST` | Demande d'un chunk |
-| `0x22` | `CHUNK_DATA` | Données d'un chunk |
-| `0x23` | `CHUNK_ACK` | Confirmation de réception |
-| `0xF0` | `PING` | Keep-alive |
-| `0xF1` | `PONG` | Réponse keep-alive |
-| `0xFE` | `REVOKE` | Révocation de clé compromise |
-| `0xFF` | `ERROR` | Erreur protocole |
-
+| Code   | Nom          | Usage                                         |
+|--------|--------------|-----------------------------------------------|
+| `0x01` | `HELLO`      | Annonce de présence UDP toutes les 30s        |
+| `0x02` | `PEER_LIST`  | Liste des pairs connus (TCP unicast)          |
+| `0x03` | `MSG`        | Message texte chiffré E2E                     |
+| `0x04` | `CHUNK_REQ`  | Requête d'un bloc de fichier                  |
+| `0x05` | `CHUNK_DATA` | Transfert d'un bloc de fichier                |
+| `0x06` | `MANIFEST`   | Métadonnées d'un fichier (hash, nb chunks)   |
+| `0x07` | `ACK`        | Acquittement                                  |
+| `0x10` | `HANDSHAKE_INIT` | Initiation du handshake chiffré           |
+| `0x11` | `HANDSHAKE_ACK`  | Confirmation handshake                    |
+| `0x12` | `HANDSHAKE_AUTH` | Authentification Ed25519                  |
+| `0xF0` | `PING`       | Keep-alive                                    |
+| `0xF1` | `PONG`       | Réponse keep-alive                            |
 
 
 ## Guide de démo
 
 ```bash
-# Terminal 1 — Premier nœud
-python -m src.cli.main --port 7777
+# Génération des identités (une fois par machine)
+python src/clé.py --name Alice
+# Sur la machine B :
+python src/clé.py --name Bob
 
-# Terminal 2 — Second nœud (même LAN ou localhost)
-python -m src.cli.main --port 7778
+# Terminal 1 — Lancer le nœud Alice (port 7777 + discovery UDP)
+python src/cli.py start --port 7777
 
-# Commandes CLI :
-#   /peers          — liste les pairs découverts
-#   /send <msg>     — envoie un message chiffré
-#   /share <file>   — partage un fichier (chunking)
-#   /get <hash>     — télécharge un fichier par hash
-#   /ask <question> — interroge l'assistant Gemini
+# Terminal 2 — Nœud Bob (même LAN ou localhost)
+python src/cli.py start --port 7778
+
+# Commandes CLI disponibles :
+python src/cli.py peers                          # Liste les pairs découverts
+python src/cli.py msg <NODE_ID> "Hello!"         # Envoie un message chiffré
+python src/cli.py send <NODE_ID> fichier.zip     # Partage un fichier (chunking)
+python src/cli.py download <FILE_ID>             # Télécharge un fichier par ID
+python src/cli.py msg <ID> "@archipel-ai Résume" # Interroge l'assistant Gemini
+
+# Interface Web Dashboard :
+python src/web_ui.py   # Ouvrir http://localhost:8080
 ```
+

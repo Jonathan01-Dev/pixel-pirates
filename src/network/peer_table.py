@@ -37,19 +37,26 @@ class PeerTable:
         except Exception as e:
             print(f"[PeerTable] Erreur sauvegarde: {e}")
 
-    def update_peer(self, node_id: str, ip: str, port):
+    def update_peer(self, node_id: str, ip: str, port, shared_files: list = None):
         """Ajoute ou met à jour un pair dans la table."""
         is_new = node_id not in self.peers
         self.peers[node_id] = {
+            'node_id': node_id,          # ← stocké explicitement (PEER_LIST routing)
             'ip': ip,
-            'tcp_port': int(port),      # ← converti en int
+            'tcp_port': int(port),
             'last_seen': time.time(),
-            'shared_files': [],          # ← conforme au sujet
+            'shared_files': shared_files or self.peers.get(node_id, {}).get('shared_files', []),
             'reputation': self.peers.get(node_id, {}).get('reputation', 1.0),
         }
         if is_new:
             print(f"🆕 Nouveau pair détecté : {node_id[:10]}… @ {ip}:{port}")
         self._save()
+
+    def update_shared_files(self, node_id: str, file_hashes: list):
+        """Met à jour la liste des fichiers partagés d'un pair."""
+        if node_id in self.peers:
+            self.peers[node_id]['shared_files'] = file_hashes
+            self._save()
 
     def clean_old_peers(self):
         """Supprime les pairs sans HELLO depuis plus de 90 secondes."""

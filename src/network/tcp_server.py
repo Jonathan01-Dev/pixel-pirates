@@ -185,8 +185,14 @@ def _dispatch(msg_type, remote_node_id, payload, conn, addr, peer_table, node_id
 
     elif msg_type == TYPE_PEER_LIST:
         for p in payload.get("peers", []):
-            if p.get("node_id") and p["node_id"] != node_id:
-                peer_table.update_peer(p["node_id"], p.get("ip", addr[0]), p.get("tcp_port", TCP_PORT))
+            peer_nid = p.get("node_id")
+            if peer_nid and peer_nid != node_id:
+                peer_table.update_peer(
+                    peer_nid,
+                    p.get("ip", addr[0]),
+                    p.get("tcp_port", TCP_PORT),
+                    p.get("shared_files", [])
+                )
 
 
 class TCPServer:

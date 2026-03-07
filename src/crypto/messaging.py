@@ -14,7 +14,7 @@ try:
     from crypto.handshake import HandshakeSession
     from network.packet import (
         build_json_packet, parse_packet_stream, parse_json_payload, ArchipelPacketError,
-        TYPE_MSG, TYPE_PING, TYPE_PONG
+        TYPE_MSG, TYPE_PING, TYPE_PONG, TYPE_CHUNK_REQ, TYPE_CHUNK_DATA, TYPE_MANIFEST
     )
 except ImportError:
     src_dir = str(Path(__file__).resolve().parents[1])
@@ -24,7 +24,7 @@ except ImportError:
     from crypto.handshake import HandshakeSession
     from network.packet import (
         build_json_packet, parse_packet_stream, parse_json_payload, ArchipelPacketError,
-        TYPE_MSG, TYPE_PING, TYPE_PONG
+        TYPE_MSG, TYPE_PING, TYPE_PONG, TYPE_CHUNK_REQ, TYPE_CHUNK_DATA, TYPE_MANIFEST
     )
 
 def send_encrypted_payload(sock, session: HandshakeSession, msg_type: int, my_node_id: str, payload_dict: dict):
@@ -71,7 +71,11 @@ def receive_encrypted_message(sock, session: HandshakeSession) -> tuple[int, dic
         ciphertext = bytes.fromhex(payload["ciphertext"])
         mac        = bytes.fromhex(payload["hmac"])
     except (KeyError, ValueError) as e:
+<<<<<<< HEAD
         print(f"[MSG] Payload malforme : {e}")
+=======
+        print(f"[MSG] ❌ Payload malformé : {e}")
+>>>>>>> origin/main
         return None, None
 
     if not verify_hmac(session.session_key, nonce + ciphertext, mac):
